@@ -1,0 +1,1132 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Java Code Visualizer - Student Edition</title>
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              50: '#f0f9ff',
+              100: '#e0f2fe',
+              500: '#0284c7',
+              600: '#0284c7',
+              700: '#0369a1',
+              900: '#0c4a6e',
+            },
+            java: {
+              orange: '#f89820',
+              blue: '#5382a1',
+              dark: '#1e1e1e'
+            }
+          }
+        }
+      }
+    }
+  </script>
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <!-- Font -->
+  <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    body { font-family: 'Inter', sans-serif; }
+    .font-mono-code { font-family: 'Fira Code', monospace; }
+    
+    /* Custom Scrollbars */
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: rgba(0,0,0,0.1); }
+    ::-webkit-scrollbar-thumb { background: rgba(100,100,100,0.3); border-radius: 3px; }
+    ::-webkit-scrollbar-thumb:hover { background: rgba(100,100,100,0.5); }
+    
+    /* Highlight Active Executing Line */
+    .executing-line {
+      background-color: rgba(234, 179, 8, 0.25) !important;
+      border-left: 4px solid #eab308;
+    }
+    .error-line {
+      background-color: rgba(239, 68, 68, 0.2) !important;
+      border-left: 4px solid #ef4444;
+    }
+    
+    /* Glow Animations */
+    @keyframes pulse-glow {
+      0%, 100% { box-shadow: 0 0 15px rgba(59, 130, 246, 0.5); }
+      50% { box-shadow: 0 0 25px rgba(59, 130, 246, 0.8); }
+    }
+    .active-node {
+      animation: pulse-glow 2s infinite;
+    }
+  </style>
+</head>
+<body class="bg-slate-900 text-slate-100 min-h-screen flex flex-col transition-colors duration-200">
+
+  <!-- Header & Navigation -->
+  <header class="border-b border-slate-800 bg-slate-950/80 backdrop-blur sticky top-0 z-50 px-4 py-3">
+    <div class="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-3">
+      <!-- Logo & Title -->
+      <div class="flex items-center space-x-3">
+        <div class="p-2 bg-gradient-to-tr from-amber-500 to-orange-600 rounded-xl text-white shadow-lg shadow-orange-500/20">
+          <i data-lucide="code-2" class="w-6 h-6"></i>
+        </div>
+        <div>
+          <div class="flex items-center gap-2">
+            <h1 class="text-xl font-bold bg-gradient-to-r from-amber-400 via-orange-300 to-amber-200 bg-clip-text text-transparent">
+              Java Visualizer
+            </h1>
+            <span class="text-xs px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-400 border border-amber-500/20 font-medium">
+              Student Edition
+            </span>
+          </div>
+          <p class="text-xs text-slate-400">Step-by-step Java Execution & Memory Diagram Flow</p>
+        </div>
+      </div>
+
+      <!-- Quick Controls & Preset Selector -->
+      <div class="flex items-center flex-wrap gap-2 w-full md:w-auto justify-end">
+        <!-- Preset Dropdown -->
+        <div class="relative flex-1 md:flex-initial">
+          <select id="templateSelect" onchange="loadPresetTemplate()" class="w-full md:w-56 bg-slate-800 border border-slate-700 text-slate-200 text-sm rounded-lg px-3 py-2 focus:ring-2 focus:ring-amber-500 focus:outline-none cursor-pointer">
+            <option value="bubbleSort">🫧 Bubble Sort</option>
+            <option value="binarySearch">🔍 Binary Search</option>
+            <option value="fibonacci">🌀 Fibonacci (Recursion)</option>
+            <option value="linkedList">🔗 LinkedList Reversal</option>
+            <option value="custom">✏️ Custom Java Code</option>
+          </select>
+        </div>
+
+        <!-- File Upload -->
+        <label class="cursor-pointer bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 text-sm px-3 py-2 rounded-lg flex items-center gap-1.5 transition">
+          <i data-lucide="upload" class="w-4 h-4 text-slate-400"></i>
+          <span class="hidden sm:inline">Upload .java</span>
+          <input type="file" id="fileInput" accept=".java,.txt" class="hidden" onchange="handleFileUpload(event)">
+        </label>
+
+        <!-- Theme Toggle -->
+        <button onclick="toggleTheme()" class="p-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg border border-slate-700 transition" title="Toggle Theme">
+          <i data-lucide="sun" id="themeIcon" class="w-4 h-4"></i>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Container -->
+  <main class="flex-1 max-w-7xl w-full mx-auto p-3 md:p-4 grid grid-cols-1 lg:grid-cols-12 gap-4">
+
+    <!-- LEFT PANE: Editor & Input Configuration -->
+    <section class="lg:col-span-5 flex flex-col gap-3">
+      
+      <!-- Execution Action Bar -->
+      <div class="bg-slate-800/80 border border-slate-700/80 rounded-xl p-3 flex flex-wrap items-center justify-between gap-2 shadow-sm">
+        <button onclick="analyzeAndVisualize()" class="bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 text-white font-semibold text-sm px-4 py-2 rounded-lg flex items-center gap-2 shadow-md shadow-orange-500/20 transition active:scale-95">
+          <i data-lucide="play" class="w-4 h-4 fill-current"></i>
+          <span>Visualize</span>
+        </button>
+
+        <div class="flex items-center gap-1 bg-slate-900/60 p-1 rounded-lg border border-slate-700/60">
+          <button onclick="stepBack()" id="btnBack" disabled class="p-1.5 text-slate-400 hover:text-white disabled:opacity-30 disabled:hover:text-slate-400 rounded hover:bg-slate-800 transition" title="Step Backward">
+            <i data-lucide="skip-back" class="w-4 h-4"></i>
+          </button>
+          
+          <button onclick="toggleAutoPlay()" id="btnAutoPlay" disabled class="p-1.5 text-amber-400 hover:text-amber-300 disabled:opacity-30 rounded hover:bg-slate-800 transition" title="Auto Play/Pause">
+            <i data-lucide="play-circle" id="autoPlayIcon" class="w-4 h-4"></i>
+          </button>
+
+          <button onclick="stepForward()" id="btnForward" disabled class="p-1.5 text-slate-400 hover:text-white disabled:opacity-30 disabled:hover:text-slate-400 rounded hover:bg-slate-800 transition" title="Step Forward">
+            <i data-lucide="skip-forward" class="w-4 h-4"></i>
+          </button>
+
+          <button onclick="resetExecution()" id="btnReset" class="p-1.5 text-slate-400 hover:text-rose-400 rounded hover:bg-slate-800 transition" title="Reset Execution">
+            <i data-lucide="rotate-ccw" class="w-4 h-4"></i>
+          </button>
+        </div>
+
+        <!-- Step Indicator -->
+        <span id="stepCounter" class="text-xs font-mono text-slate-400 bg-slate-900/80 px-2.5 py-1 rounded-md border border-slate-800">
+          Step 0/0
+        </span>
+      </div>
+
+      <!-- Error / Syntax Banner -->
+      <div id="errorBanner" class="hidden bg-rose-950/80 border border-rose-600/60 rounded-xl p-3 text-rose-200 text-xs flex gap-2.5 items-start animate-fade-in">
+        <i data-lucide="alert-triangle" class="w-5 h-5 text-rose-400 shrink-0 mt-0.5"></i>
+        <div class="flex-1">
+          <h4 class="font-semibold text-rose-300 mb-0.5" id="errorTitle">Syntax Check Failed</h4>
+          <p id="errorMessage" class="font-mono text-rose-200/90 leading-relaxed"></p>
+        </div>
+        <button onclick="dismissError()" class="text-rose-400 hover:text-rose-200">
+          <i data-lucide="x" class="w-4 h-4"></i>
+        </button>
+      </div>
+
+      <!-- Code Editor Pane -->
+      <div class="bg-slate-950 border border-slate-800 rounded-xl flex flex-col overflow-hidden shadow-lg flex-1 min-h-[380px]">
+        <div class="bg-slate-900/90 border-b border-slate-800 px-3 py-2 flex items-center justify-between text-xs text-slate-400">
+          <div class="flex items-center gap-2">
+            <i data-lucide="file-code" class="w-4 h-4 text-amber-500"></i>
+            <span class="font-mono text-slate-300" id="currentFileName">Main.java</span>
+          </div>
+          <span class="text-[11px] text-slate-500">Java Standard Syntax</span>
+        </div>
+
+        <!-- Editor with Line Numbers -->
+        <div class="flex-1 flex relative font-mono-code text-xs md:text-sm overflow-auto">
+          <!-- Line Numbers -->
+          <div id="lineNumbers" class="select-none py-3 px-2 text-right bg-slate-900/40 text-slate-600 border-r border-slate-800/60 font-mono text-xs min-w-[36px]">
+            1
+          </div>
+          
+          <!-- Code Textarea -->
+          <div class="relative flex-1">
+            <textarea id="codeEditor" spellcheck="false" oninput="updateLineNumbers(); checkSyntaxRealtime();" onscroll="syncScroll()" class="w-full h-full bg-transparent p-3 text-slate-200 outline-none resize-none font-mono-code leading-6 tab-size-2 leading-relaxed" placeholder="// Enter Java source code here..."></textarea>
+          </div>
+        </div>
+      </div>
+
+      <!-- Test Case / Sample Input Editor -->
+      <div class="bg-slate-800/80 border border-slate-700/80 rounded-xl p-3 shadow-sm">
+        <div class="flex items-center justify-between mb-2">
+          <label class="text-xs font-semibold text-slate-300 flex items-center gap-1.5">
+            <i data-lucide="sliders" class="w-3.5 h-3.5 text-amber-400"></i>
+            Test Case / Input Variables
+          </label>
+          <span class="text-[11px] text-slate-400">JSON / Key-Value Format</span>
+        </div>
+        <textarea id="sampleInputEditor" class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2.5 font-mono text-xs text-amber-300/90 focus:ring-1 focus:ring-amber-500 outline-none resize-none h-20" placeholder='{ "arr": [5, 2, 8, 1, 3], "target": 8 }'></textarea>
+      </div>
+    </section>
+
+
+    <!-- RIGHT PANE: Visualizations, Memory Heap, AST & Output -->
+    <section class="lg:col-span-7 flex flex-col gap-3">
+
+      <!-- Navigation Tabs for Visualization Modes -->
+      <div class="bg-slate-800/80 border border-slate-700/80 rounded-xl p-1.5 flex items-center gap-1 shadow-sm text-xs">
+        <button onclick="switchTab('visualizer')" id="tab-visualizer" class="flex-1 py-1.5 px-3 rounded-lg font-medium transition flex items-center justify-center gap-1.5 bg-amber-500 text-slate-950 font-semibold shadow">
+          <i data-lucide="cpu" class="w-3.5 h-3.5"></i> Memory & Stack
+        </button>
+        <button onclick="switchTab('flowchart')" id="tab-flowchart" class="flex-1 py-1.5 px-3 rounded-lg font-medium transition flex items-center justify-center gap-1.5 text-slate-400 hover:text-slate-200 hover:bg-slate-700/50">
+          <i data-lucide="git-fork" class="w-3.5 h-3.5"></i> Control Flow Diagram
+        </button>
+        <button onclick="switchTab('ast')" id="tab-ast" class="flex-1 py-1.5 px-3 rounded-lg font-medium transition flex items-center justify-center gap-1.5 text-slate-400 hover:text-slate-200 hover:bg-slate-700/50">
+          <i data-lucide="network" class="w-3.5 h-3.5"></i> AST Structure
+        </button>
+      </div>
+
+      <!-- Human Explanation Banner (Step Narrative) -->
+      <div class="bg-gradient-to-r from-slate-900 via-amber-950/20 to-slate-900 border border-amber-500/30 rounded-xl p-3 shadow-sm flex items-start gap-3">
+        <div class="p-2 bg-amber-500/10 rounded-lg text-amber-400 border border-amber-500/20 shrink-0">
+          <i data-lucide="sparkles" class="w-4 h-4"></i>
+        </div>
+        <div class="flex-1">
+          <div class="flex items-center justify-between">
+            <span class="text-[11px] uppercase tracking-wider font-semibold text-amber-400">Step Narrative</span>
+            <span id="explanationLineBadge" class="text-[11px] font-mono text-slate-400 bg-slate-800 px-2 py-0.5 rounded">Line --</span>
+          </div>
+          <p id="stepExplanation" class="text-xs text-slate-200 mt-1 leading-relaxed">
+            Click <strong class="text-amber-400">"Visualize"</strong> to parse code and generate step-by-step execution memory maps.
+          </p>
+        </div>
+      </div>
+
+      <!-- TAB CONTENT 1: Memory Stack & Heap Visualizer -->
+      <div id="view-visualizer" class="flex-1 flex flex-col gap-3">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-3 flex-1 min-h-[300px]">
+          
+          <!-- Stack Frame Panel -->
+          <div class="bg-slate-950 border border-slate-800 rounded-xl p-3 flex flex-col">
+            <div class="flex items-center justify-between pb-2 mb-2 border-b border-slate-800">
+              <span class="text-xs font-semibold text-slate-300 flex items-center gap-1.5">
+                <i data-lucide="layers" class="w-3.5 h-3.5 text-cyan-400"></i>
+                Call Stack (Active Frames)
+              </span>
+              <span class="text-[10px] bg-cyan-950 text-cyan-400 border border-cyan-800 px-1.5 py-0.5 rounded">LIFO Stack</span>
+            </div>
+            <div id="stackContainer" class="flex-1 overflow-y-auto space-y-2 pr-1">
+              <div class="text-xs text-slate-500 italic p-4 text-center">Stack is empty</div>
+            </div>
+          </div>
+
+          <!-- Heap Memory Panel -->
+          <div class="bg-slate-950 border border-slate-800 rounded-xl p-3 flex flex-col">
+            <div class="flex items-center justify-between pb-2 mb-2 border-b border-slate-800">
+              <span class="text-xs font-semibold text-slate-300 flex items-center gap-1.5">
+                <i data-lucide="database" class="w-3.5 h-3.5 text-emerald-400"></i>
+                Heap Memory (Objects & Arrays)
+              </span>
+              <span class="text-[10px] bg-emerald-950 text-emerald-400 border border-emerald-800 px-1.5 py-0.5 rounded">Dynamic Objects</span>
+            </div>
+            <div id="heapContainer" class="flex-1 overflow-y-auto space-y-2 pr-1">
+              <div class="text-xs text-slate-500 italic p-4 text-center">Heap memory is empty</div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- TAB CONTENT 2: Control Flow Diagram -->
+      <div id="view-flowchart" class="hidden bg-slate-950 border border-slate-800 rounded-xl p-4 min-h-[350px] flex flex-col overflow-auto">
+        <div class="text-xs font-semibold text-slate-400 mb-3 flex items-center gap-2">
+          <i data-lucide="git-commit" class="w-4 h-4 text-amber-400"></i>
+          Execution Control Graph Flow
+        </div>
+        <div id="flowchartCanvas" class="flex-1 flex flex-col items-center justify-start space-y-4 py-4 min-w-[300px]">
+          <!-- Dynamic Nodes Rendered via JS -->
+        </div>
+      </div>
+
+      <!-- TAB CONTENT 3: AST / Structure Tree -->
+      <div id="view-ast" class="hidden bg-slate-950 border border-slate-800 rounded-xl p-4 min-h-[350px] overflow-auto">
+        <div class="text-xs font-semibold text-slate-400 mb-2 flex items-center gap-2">
+          <i data-lucide="folder-tree" class="w-4 h-4 text-cyan-400"></i>
+          Abstract Syntax Tree (AST) Hierarchy
+        </div>
+        <pre id="astContainer" class="font-mono text-xs text-cyan-300/90 leading-relaxed bg-slate-900/50 p-3 rounded-lg border border-slate-800 overflow-x-auto">
+// AST structural representation will appear here after code analysis.
+        </pre>
+      </div>
+
+      <!-- Terminal Output Window -->
+      <div class="bg-slate-950 border border-slate-800 rounded-xl overflow-hidden flex flex-col h-40 shadow-lg">
+        <div class="bg-slate-900/90 border-b border-slate-800 px-3 py-1.5 flex items-center justify-between text-xs text-slate-400">
+          <div class="flex items-center gap-2">
+            <i data-lucide="terminal" class="w-3.5 h-3.5 text-emerald-400"></i>
+            <span class="font-mono text-slate-300">Standard Output (System.out)</span>
+          </div>
+          <button onclick="clearConsole()" class="hover:text-slate-200 transition text-[11px] flex items-center gap-1">
+            <i data-lucide="trash-2" class="w-3 h-3"></i> Clear
+          </button>
+        </div>
+        <div id="terminalOutput" class="flex-1 p-3 font-mono text-xs text-emerald-400 overflow-y-auto leading-relaxed bg-black/40">
+          <span class="text-slate-600">// Output stream ready...</span>
+        </div>
+      </div>
+
+    </section>
+  </main>
+
+  <!-- Footer -->
+  <footer class="border-t border-slate-800 bg-slate-950/60 text-center py-2.5 text-xs text-slate-500 mt-auto">
+    Java Code Visualizer for Computer Science & DSA Students &bull; Interactive Execution & State Tracking
+  </footer>
+
+  <!-- JS LOGIC ENGINE -->
+  <script>
+    // --- PRESET TEMPLATES ---
+    const PRESETS = {
+      bubbleSort: {
+        filename: "BubbleSort.java",
+        input: '{\n  "arr": [5, 2, 8, 1, 3]\n}',
+        code: `public class BubbleSort {
+    public static void main(String[] args) {
+        int[] arr = {5, 2, 8, 1, 3};
+        int n = arr.length;
+        
+        for (int i = 0; i < n - 1; i++) {
+            for (int j = 0; j < n - i - 1; j++) {
+                if (arr[j] > arr[j + 1]) {
+                    // Swap elements
+                    int temp = arr[j];
+                    arr[j] = arr[j + 1];
+                    arr[j + 1] = temp;
+                }
+            }
+        }
+        System.out.println("Sorted Array:");
+        for (int num : arr) {
+            System.out.print(num + " ");
+        }
+    }
+}`
+      },
+
+      binarySearch: {
+        filename: "BinarySearch.java",
+        input: '{\n  "arr": [2, 5, 8, 12, 16, 23, 38, 56],\n  "target": 23\n}',
+        code: `public class BinarySearch {
+    public static void main(String[] args) {
+        int[] arr = {2, 5, 8, 12, 16, 23, 38, 56};
+        int target = 23;
+        int low = 0;
+        int high = arr.length - 1;
+        int result = -1;
+
+        while (low <= high) {
+            int mid = low + (high - low) / 2;
+
+            if (arr[mid] == target) {
+                result = mid;
+                break;
+            }
+            if (arr[mid] < target) {
+                low = mid + 1;
+            } else {
+                high = mid - 1;
+            }
+        }
+        System.out.println("Target found at index: " + result);
+    }
+}`
+      },
+
+      fibonacci: {
+        filename: "Fibonacci.java",
+        input: '{\n  "n": 4\n}',
+        code: `public class Fibonacci {
+    public static void main(String[] args) {
+        int n = 4;
+        int result = fib(n);
+        System.out.println("Fibonacci(" + n + ") = " + result);
+    }
+
+    public static int fib(int n) {
+        if (n <= 1) {
+            return n;
+        }
+        return fib(n - 1) + fib(n - 2);
+    }
+}`
+      },
+
+      linkedList: {
+        filename: "LinkedListReversal.java",
+        input: '{\n  "nodes": [10, 20, 30]\n}',
+        code: `class Node {
+    int data;
+    Node next;
+    Node(int d) { data = d; next = null; }
+}
+
+public class LinkedListReversal {
+    public static void main(String[] args) {
+        Node head = new Node(10);
+        head.next = new Node(20);
+        head.next.next = new Node(30);
+
+        Node prev = null;
+        Node current = head;
+        Node nextNode = null;
+
+        while (current != null) {
+            nextNode = current.next;
+            current.next = prev;
+            prev = current;
+            current = nextNode;
+        }
+        head = prev;
+        System.out.println("LinkedList Reversed Successfully!");
+    }
+}`
+      },
+
+      custom: {
+        filename: "CustomCode.java",
+        input: '{\n  "x": 10,\n  "y": 20\n}',
+        code: `public class CustomCode {
+    public static void main(String[] args) {
+        int x = 10;
+        int y = 20;
+        int sum = x + y;
+        System.out.println("Sum: " + sum);
+    }
+}`
+      }
+    };
+
+    // --- GLOBAL EXECUTION STATE ---
+    let executionSteps = [];
+    let currentStepIndex = 0;
+    let autoPlayInterval = null;
+    let isAutoPlaying = false;
+
+    // --- INITIALIZATION ---
+    window.onload = () => {
+      lucide.createIcons();
+      loadPresetTemplate('bubbleSort');
+    };
+
+    function loadPresetTemplate(key = null) {
+      const selectKey = key || document.getElementById('templateSelect').value;
+      const preset = PRESETS[selectKey] || PRESETS.bubbleSort;
+      
+      document.getElementById('codeEditor').value = preset.code;
+      document.getElementById('sampleInputEditor').value = preset.input;
+      document.getElementById('currentFileName').innerText = preset.filename;
+      
+      if (key) document.getElementById('templateSelect').value = key;
+      
+      updateLineNumbers();
+      checkSyntaxRealtime();
+      resetExecution();
+    }
+
+    // --- LINE NUMBERS & EDITOR SCROLL SYNC ---
+    function updateLineNumbers() {
+      const editor = document.getElementById('codeEditor');
+      const lineContainer = document.getElementById('lineNumbers');
+      const lines = editor.value.split('\n').length;
+      
+      let numHTML = '';
+      for (let i = 1; i <= lines; i++) {
+        numHTML += `<div id="line-num-${i}" class="h-6 leading-6 flex items-center justify-end px-1">${i}</div>`;
+      }
+      lineContainer.innerHTML = numHTML;
+    }
+
+    function syncScroll() {
+      const editor = document.getElementById('codeEditor');
+      const lineContainer = document.getElementById('lineNumbers');
+      lineContainer.scrollTop = editor.scrollTop;
+    }
+
+    // --- STATIC JAVA SYNTAX & ERROR CHECKER ---
+    function checkSyntaxRealtime() {
+      const code = document.getElementById('codeEditor').value;
+      const errorBanner = document.getElementById('errorBanner');
+      const errorMessage = document.getElementById('errorMessage');
+
+      // Simple Syntax Guards
+      let braceBalance = 0;
+      let parenBalance = 0;
+      let lines = code.split('\n');
+      let foundClass = false;
+      let syntaxError = null;
+
+      for (let i = 0; i < lines.length; i++) {
+        let line = lines[i].trim();
+        if (line.includes('class ')) foundClass = true;
+
+        for (let char of line) {
+          if (char === '{') braceBalance++;
+          if (char === '}') braceBalance--;
+          if (char === '(') parenBalance++;
+          if (char === ')') parenBalance--;
+        }
+
+        // Check missing semicolon on variable assignments or primitive statements
+        if (line.length > 0 && 
+            !line.startsWith("//") && 
+            !line.startsWith("public") && 
+            !line.startsWith("class") && 
+            !line.endsWith("{") && 
+            !line.endsWith("}") && 
+            !line.endsWith(";") && 
+            !line.startsWith("for") && 
+            !line.startsWith("while") && 
+            !line.startsWith("if") && 
+            !line.startsWith("else")) {
+          syntaxError = { line: i + 1, msg: `Missing semicolon ';' at line ${i + 1}` };
+          break;
+        }
+      }
+
+      if (!foundClass && !syntaxError) {
+        syntaxError = { line: 1, msg: "Missing Java class declaration (e.g., 'public class Main { ... }')." };
+      } else if (braceBalance !== 0 && !syntaxError) {
+        syntaxError = { line: lines.length, msg: braceBalance > 0 ? "Unclosed curly brace '{'" : "Extra closing curly brace '}'" };
+      } else if (parenBalance !== 0 && !syntaxError) {
+        syntaxError = { line: lines.length, msg: parenBalance > 0 ? "Unclosed parenthesis '('" : "Extra closing parenthesis ')'" };
+      }
+
+      if (syntaxError) {
+        errorBanner.classList.remove('hidden');
+        errorMessage.innerText = `Line ${syntaxError.line}: ${syntaxError.msg}`;
+        highlightLine(syntaxError.line, 'error-line');
+        return false;
+      } else {
+        errorBanner.classList.add('hidden');
+        clearHighlights();
+        return true;
+      }
+    }
+
+    function dismissError() {
+      document.getElementById('errorBanner').classList.add('hidden');
+    }
+
+    function highlightLine(lineNum, className = 'executing-line') {
+      clearHighlights();
+      const lineElem = document.getElementById(`line-num-${lineNum}`);
+      if (lineElem) {
+        lineElem.classList.add(className);
+        lineElem.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      }
+    }
+
+    function clearHighlights() {
+      const lineElems = document.querySelectorAll('#lineNumbers div');
+      lineElems.forEach(el => {
+        el.className = 'h-6 leading-6 flex items-center justify-end px-1';
+      });
+    }
+
+    // --- FILE UPLOAD HANDLER ---
+    function handleFileUpload(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        document.getElementById('codeEditor').value = e.target.result;
+        document.getElementById('currentFileName').innerText = file.name;
+        document.getElementById('templateSelect').value = 'custom';
+        updateLineNumbers();
+        checkSyntaxRealtime();
+        resetExecution();
+      };
+      reader.readAsText(file);
+    }
+
+    // --- EXECUTION SIMULATOR & STEP GENERATOR ENGINE ---
+    function analyzeAndVisualize() {
+      if (!checkSyntaxRealtime()) return;
+
+      const presetKey = document.getElementById('templateSelect').value;
+      const code = document.getElementById('codeEditor').value;
+      let rawInput = {};
+      try {
+        rawInput = JSON.parse(document.getElementById('sampleInputEditor').value || '{}');
+      } catch(e) {
+        rawInput = {};
+      }
+
+      // Generate Execution Steps based on selected algorithm or custom AST fallback
+      if (presetKey === 'bubbleSort') {
+        executionSteps = simulateBubbleSort(rawInput.arr || [5, 2, 8, 1, 3]);
+      } else if (presetKey === 'binarySearch') {
+        executionSteps = simulateBinarySearch(rawInput.arr || [2, 5, 8, 12, 16, 23, 38, 56], rawInput.target || 23);
+      } else if (presetKey === 'fibonacci') {
+        executionSteps = simulateFibonacci(rawInput.n || 4);
+      } else if (presetKey === 'linkedList') {
+        executionSteps = simulateLinkedList(rawInput.nodes || [10, 20, 30]);
+      } else {
+        executionSteps = simulateGenericCode(code, rawInput);
+      }
+
+      currentStepIndex = 0;
+      updateControlButtons();
+      renderCurrentStep();
+      generateAST(code);
+    }
+
+    // --- ALGORITHM SIMULATORS ---
+    
+    // 1. Bubble Sort Simulation
+    function simulateBubbleSort(initialArr) {
+      let steps = [];
+      let arr = [...initialArr];
+      let n = arr.length;
+
+      steps.push({
+        line: 3,
+        explanation: `Initialize array on Heap with length ${n}: [${arr.join(', ')}].`,
+        stack: [{ method: "main", vars: { n: n } }],
+        heap: { "0x1001 (int[])": [...arr] },
+        output: ""
+      });
+
+      for (let i = 0; i < n - 1; i++) {
+        steps.push({
+          line: 6,
+          explanation: `Outer loop pass i = ${i}. Comparing adjacent elements.`,
+          stack: [{ method: "main", vars: { i: i, n: n } }],
+          heap: { "0x1001 (int[])": [...arr] },
+          output: ""
+        });
+
+        for (let j = 0; j < n - i - 1; j++) {
+          let compareMsg = `Comparing arr[${j}] (${arr[j]}) and arr[${j+1}] (${arr[j+1]}).`;
+          let needSwap = arr[j] > arr[j + 1];
+
+          steps.push({
+            line: 8,
+            explanation: `${compareMsg} Condition (${arr[j]} > ${arr[j+1]}) is ${needSwap ? 'TRUE' : 'FALSE'}.`,
+            stack: [{ method: "main", vars: { i: i, j: j, n: n } }],
+            heap: { "0x1001 (int[])": [...arr] },
+            activeIndices: [j, j + 1],
+            output: ""
+          });
+
+          if (needSwap) {
+            let temp = arr[j];
+            arr[j] = arr[j + 1];
+            arr[j + 1] = temp;
+
+            steps.push({
+              line: 11,
+              explanation: `Swapped arr[${j}] and arr[${j+1}]. Array state is now [${arr.join(', ')}].`,
+              stack: [{ method: "main", vars: { i: i, j: j, temp: temp, n: n } }],
+              heap: { "0x1001 (int[])": [...arr] },
+              activeIndices: [j, j + 1],
+              output: ""
+            });
+          }
+        }
+      }
+
+      steps.push({
+        line: 17,
+        explanation: `Sorting completed successfully! Final sorted array: [${arr.join(', ')}].`,
+        stack: [{ method: "main", vars: {} }],
+        heap: { "0x1001 (int[])": [...arr] },
+        output: `Sorted Array:\n${arr.join(' ')}`
+      });
+
+      return steps;
+    }
+
+    // 2. Binary Search Simulation
+    function simulateBinarySearch(arr, target) {
+      let steps = [];
+      let low = 0;
+      let high = arr.length - 1;
+      let result = -1;
+
+      steps.push({
+        line: 4,
+        explanation: `Initial bounds set: low = 0, high = ${high}, searching for target = ${target}.`,
+        stack: [{ method: "main", vars: { target: target, low: low, high: high, result: result } }],
+        heap: { "0x2001 (int[])": [...arr] },
+        output: ""
+      });
+
+      while (low <= high) {
+        let mid = Math.floor(low + (high - low) / 2);
+
+        steps.push({
+          line: 10,
+          explanation: `Calculated mid = ${mid} (Value at arr[${mid}] = ${arr[mid]}). Bounds: [${low} .. ${high}].`,
+          stack: [{ method: "main", vars: { target: target, low: low, high: high, mid: mid } }],
+          heap: { "0x2001 (int[])": [...arr] },
+          activeIndices: [mid],
+          output: ""
+        });
+
+        if (arr[mid] === target) {
+          result = mid;
+          steps.push({
+            line: 13,
+            explanation: `Target ${target} matches arr[${mid}]! Search successful.`,
+            stack: [{ method: "main", vars: { target: target, mid: mid, result: result } }],
+            heap: { "0x2001 (int[])": [...arr] },
+            activeIndices: [mid],
+            output: `Target found at index: ${result}`
+          });
+          break;
+        }
+
+        if (arr[mid] < target) {
+          steps.push({
+            line: 17,
+            explanation: `arr[${mid}] (${arr[mid]}) < ${target}. Search right half: setting low = ${mid + 1}.`,
+            stack: [{ method: "main", vars: { target: target, low: mid + 1, high: high, mid: mid } }],
+            heap: { "0x2001 (int[])": [...arr] },
+            output: ""
+          });
+          low = mid + 1;
+        } else {
+          steps.push({
+            line: 19,
+            explanation: `arr[${mid}] (${arr[mid]}) > ${target}. Search left half: setting high = ${mid - 1}.`,
+            stack: [{ method: "main", vars: { target: target, low: low, high: mid - 1, mid: mid } }],
+            heap: { "0x2001 (int[])": [...arr] },
+            output: ""
+          });
+          high = mid - 1;
+        }
+      }
+
+      return steps;
+    }
+
+    // 3. Fibonacci Recursion Simulation
+    function simulateFibonacci(n) {
+      let steps = [];
+      let callStack = [];
+
+      function fib(val, depth) {
+        callStack.push({ method: `fib(n=${val})`, vars: { n: val } });
+        
+        steps.push({
+          line: 9,
+          explanation: `Recursive call fib(${val}) pushed to call stack. Stack Depth: ${callStack.length}.`,
+          stack: JSON.parse(JSON.stringify(callStack)),
+          heap: {},
+          output: ""
+        });
+
+        if (val <= 1) {
+          steps.push({
+            line: 10,
+            explanation: `Base case reached for n = ${val}. Returning ${val}.`,
+            stack: JSON.parse(JSON.stringify(callStack)),
+            heap: {},
+            output: ""
+          });
+          callStack.pop();
+          return val;
+        }
+
+        let a = fib(val - 1, depth + 1);
+        let b = fib(val - 2, depth + 1);
+        let res = a + b;
+
+        steps.push({
+          line: 12,
+          explanation: `Returning computed fib(${val}) = fib(${val-1}) + fib(${val-2}) = ${a} + ${b} = ${res}.`,
+          stack: JSON.parse(JSON.stringify(callStack)),
+          heap: {},
+          output: ""
+        });
+
+        callStack.pop();
+        return res;
+      }
+
+      callStack.push({ method: "main", vars: { n: n } });
+      let finalRes = fib(n, 1);
+
+      steps.push({
+        line: 5,
+        explanation: `Fibonacci(${n}) calculation completed. Outputting result: ${finalRes}.`,
+        stack: [{ method: "main", vars: { n: n, result: finalRes } }],
+        heap: {},
+        output: `Fibonacci(${n}) = ${finalRes}`
+      });
+
+      return steps;
+    }
+
+    // 4. LinkedList Reversal Simulation
+    function simulateLinkedList(nodesVal) {
+      let steps = [];
+      let heapObjects = {};
+      
+      nodesVal.forEach((val, idx) => {
+        let addr = `0x300${idx + 1}`;
+        let nextAddr = idx < nodesVal.length - 1 ? `0x300${idx + 2}` : 'null';
+        heapObjects[addr] = { data: val, next: nextAddr };
+      });
+
+      steps.push({
+        line: 9,
+        explanation: `Created linked list on Heap: ${nodesVal.map((v, i) => `[${v} | -> 0x300${i+2}]`).join(' -> ')}`,
+        stack: [{ method: "main", vars: { head: "0x3001" } }],
+        heap: JSON.parse(JSON.stringify(heapObjects)),
+        output: ""
+      });
+
+      let prev = "null";
+      let curr = "0x3001";
+      let stepNum = 1;
+
+      while (curr !== "null" && heapObjects[curr]) {
+        let nextNode = heapObjects[curr].next;
+
+        steps.push({
+          line: 17,
+          explanation: `Step ${stepNum}: Repointing node ${curr} (val: ${heapObjects[curr].data}) next pointer to ${prev}.`,
+          stack: [{ method: "main", vars: { prev: prev, current: curr, nextNode: nextNode } }],
+          heap: JSON.parse(JSON.stringify(heapObjects)),
+          output: ""
+        });
+
+        heapObjects[curr].next = prev;
+        prev = curr;
+        curr = nextNode;
+        stepNum++;
+      }
+
+      steps.push({
+        line: 23,
+        explanation: `LinkedList reversal complete! Head now points to ${prev}.`,
+        stack: [{ method: "main", vars: { head: prev, prev: prev, current: "null" } }],
+        heap: JSON.parse(JSON.stringify(heapObjects)),
+        output: "LinkedList Reversed Successfully!"
+      });
+
+      return steps;
+    }
+
+    // 5. Generic AST Code Simulation (Fallback)
+    function simulateGenericCode(code, inputs) {
+      let steps = [];
+      let lines = code.split('\n');
+      let vars = { ...inputs };
+
+      steps.push({
+        line: 1,
+        explanation: "Initializing program execution frame.",
+        stack: [{ method: "main", vars: { ...vars } }],
+        heap: {},
+        output: ""
+      });
+
+      lines.forEach((lineText, idx) => {
+        let trimmed = lineText.trim();
+        if (trimmed.startsWith("int ") || trimmed.includes("=")) {
+          let parts = trimmed.split("=");
+          if (parts.length === 2) {
+            let varName = parts[0].replace("int", "").trim();
+            vars[varName] = parts[1].replace(";", "").trim();
+          }
+          steps.push({
+            line: idx + 1,
+            explanation: `Executing statement: ${trimmed}`,
+            stack: [{ method: "main", vars: { ...vars } }],
+            heap: {},
+            output: ""
+          });
+        } else if (trimmed.startsWith("System.out.println")) {
+          let outStr = trimmed.match(/\(([^)]+)\)/)?.[1] || "Output statement";
+          steps.push({
+            line: idx + 1,
+            explanation: `Printed output to console: ${outStr}`,
+            stack: [{ method: "main", vars: { ...vars } }],
+            heap: {},
+            output: `Output: ${outStr}`
+          });
+        }
+      });
+
+      return steps;
+    }
+
+    // --- STEP CONTROLS ---
+    function stepForward() {
+      if (currentStepIndex < executionSteps.length - 1) {
+        currentStepIndex++;
+        renderCurrentStep();
+      }
+    }
+
+    function stepBack() {
+      if (currentStepIndex > 0) {
+        currentStepIndex--;
+        renderCurrentStep();
+      }
+    }
+
+    function toggleAutoPlay() {
+      const icon = document.getElementById('autoPlayIcon');
+      if (isAutoPlaying) {
+        clearInterval(autoPlayInterval);
+        isAutoPlaying = false;
+        icon.setAttribute('data-lucide', 'play-circle');
+      } else {
+        isAutoPlaying = true;
+        icon.setAttribute('data-lucide', 'pause-circle');
+        autoPlayInterval = setInterval(() => {
+          if (currentStepIndex < executionSteps.length - 1) {
+            stepForward();
+          } else {
+            toggleAutoPlay();
+          }
+        }, 1200);
+      }
+      lucide.createIcons();
+    }
+
+    function resetExecution() {
+      if (isAutoPlaying) toggleAutoPlay();
+      currentStepIndex = 0;
+      executionSteps = [];
+      updateControlButtons();
+      clearHighlights();
+      document.getElementById('stackContainer').innerHTML = '<div class="text-xs text-slate-500 italic p-4 text-center">Stack is empty</div>';
+      document.getElementById('heapContainer').innerHTML = '<div class="text-xs text-slate-500 italic p-4 text-center">Heap memory is empty</div>';
+      document.getElementById('stepExplanation').innerHTML = 'Click <strong class="text-amber-400">"Visualize"</strong> to parse code and generate step-by-step execution memory maps.';
+      document.getElementById('stepCounter').innerText = 'Step 0/0';
+      document.getElementById('terminalOutput').innerHTML = '<span class="text-slate-600">// Output stream ready...</span>';
+    }
+
+    function updateControlButtons() {
+      const hasSteps = executionSteps.length > 0;
+      document.getElementById('btnBack').disabled = !hasSteps || currentStepIndex === 0;
+      document.getElementById('btnForward').disabled = !hasSteps || currentStepIndex === executionSteps.length - 1;
+      document.getElementById('btnAutoPlay').disabled = !hasSteps;
+      document.getElementById('stepCounter').innerText = `Step ${hasSteps ? currentStepIndex + 1 : 0}/${executionSteps.length}`;
+    }
+
+    // --- RENDER CURRENT STEP VISUALS ---
+    function renderCurrentStep() {
+      if (!executionSteps[currentStepIndex]) return;
+      const step = executionSteps[currentStepIndex];
+
+      // 1. Highlight Line
+      highlightLine(step.line);
+      document.getElementById('explanationLineBadge').innerText = `Line ${step.line}`;
+      document.getElementById('stepExplanation').innerText = step.explanation;
+
+      // 2. Render Call Stack
+      const stackContainer = document.getElementById('stackContainer');
+      if (step.stack && step.stack.length > 0) {
+        stackContainer.innerHTML = step.stack.map((frame, idx) => `
+          <div class="bg-slate-900 border border-slate-800 rounded-lg p-2.5 shadow-sm text-xs border-l-4 ${idx === step.stack.length - 1 ? 'border-l-cyan-400 bg-slate-900/90' : 'border-l-slate-700'}">
+            <div class="flex items-center justify-between font-mono text-cyan-300 font-semibold mb-1.5">
+              <span>${frame.method}</span>
+              ${idx === step.stack.length - 1 ? '<span class="text-[9px] bg-cyan-950 text-cyan-400 px-1 rounded">TOP</span>' : ''}
+            </div>
+            <div class="grid grid-cols-2 gap-1 text-[11px] font-mono">
+              ${Object.entries(frame.vars || {}).map(([k, v]) => `
+                <div class="bg-slate-950 px-2 py-1 rounded border border-slate-800 flex justify-between">
+                  <span class="text-slate-400">${k}:</span>
+                  <span class="text-amber-300 font-semibold">${v}</span>
+                </div>
+              `).join('')}
+            </div>
+          </div>
+        `).join('');
+      } else {
+        stackContainer.innerHTML = '<div class="text-xs text-slate-500 italic p-4 text-center">Stack is empty</div>';
+      }
+
+      // 3. Render Heap Objects & Memory Pointers
+      const heapContainer = document.getElementById('heapContainer');
+      if (step.heap && Object.keys(step.heap).length > 0) {
+        heapContainer.innerHTML = Object.entries(step.heap).map(([addr, val]) => {
+          let isArray = Array.isArray(val);
+          return `
+            <div class="bg-slate-900 border border-slate-800 rounded-lg p-2.5 text-xs border-l-4 border-l-emerald-400">
+              <div class="font-mono text-emerald-300 text-[11px] font-semibold mb-1.5 flex justify-between">
+                <span>Address: ${addr}</span>
+                <span class="text-slate-500">${isArray ? 'Array' : 'Object'}</span>
+              </div>
+              ${isArray ? `
+                <div class="flex flex-wrap gap-1">
+                  ${val.map((item, i) => `
+                    <div class="flex flex-col items-center bg-slate-950 border ${step.activeIndices && step.activeIndices.includes(i) ? 'border-amber-400 bg-amber-950/30' : 'border-slate-800'} rounded p-1 min-w-[28px]">
+                      <span class="text-[9px] text-slate-500 font-mono">[${i}]</span>
+                      <span class="font-mono font-bold ${step.activeIndices && step.activeIndices.includes(i) ? 'text-amber-400' : 'text-slate-200'}">${item}</span>
+                    </div>
+                  `).join('')}
+                </div>
+              ` : `
+                <div class="grid grid-cols-2 gap-1 font-mono text-[11px]">
+                  ${Object.entries(val).map(([k, v]) => `
+                    <div class="bg-slate-950 px-2 py-1 rounded border border-slate-800 flex justify-between">
+                      <span class="text-slate-400">${k}:</span>
+                      <span class="text-emerald-400">${v}</span>
+                    </div>
+                  `).join('')}
+                </div>
+              `}
+            </div>
+          `;
+        }).join('');
+      } else {
+        heapContainer.innerHTML = '<div class="text-xs text-slate-500 italic p-4 text-center">Heap memory is empty</div>';
+      }
+
+      // 4. Update Terminal Output
+      if (step.output) {
+        const term = document.getElementById('terminalOutput');
+        term.innerText += `\n> ${step.output}`;
+        term.scrollTop = term.scrollHeight;
+      }
+
+      // 5. Render Flowchart Step Focus
+      renderFlowchartNode(step.line);
+
+      updateControlButtons();
+    }
+
+    // --- TAB SWITCHER ---
+    function switchTab(tabName) {
+      ['visualizer', 'flowchart', 'ast'].forEach(t => {
+        document.getElementById(`view-${t}`).classList.add('hidden');
+        document.getElementById(`tab-${t}`).className = 'flex-1 py-1.5 px-3 rounded-lg font-medium transition flex items-center justify-center gap-1.5 text-slate-400 hover:text-slate-200 hover:bg-slate-700/50';
+      });
+      document.getElementById(`view-${tabName}`).classList.remove('hidden');
+      document.getElementById(`tab-${tabName}`).className = 'flex-1 py-1.5 px-3 rounded-lg font-medium transition flex items-center justify-center gap-1.5 bg-amber-500 text-slate-950 font-semibold shadow';
+    }
+
+    // --- FLOWCHART GRAPH RENDERER ---
+    function renderFlowchartNode(activeLine) {
+      const container = document.getElementById('flowchartCanvas');
+      const code = document.getElementById('codeEditor').value;
+      const lines = code.split('\n');
+
+      let flowchartHTML = `
+        <div class="px-3 py-1 bg-emerald-950 border border-emerald-600/50 rounded-full text-[11px] font-mono text-emerald-300">Start Execution</div>
+        <div class="w-0.5 h-4 bg-slate-700"></div>
+      `;
+
+      lines.forEach((lineText, idx) => {
+        let lNum = idx + 1;
+        let trimmed = lineText.trim();
+        if (trimmed.length === 0 || trimmed.startsWith("//")) return;
+
+        let isActive = lNum === activeLine;
+        let isCondition = trimmed.startsWith("if") || trimmed.startsWith("while") || trimmed.startsWith("for");
+        
+        flowchartHTML += `
+          <div class="relative group flex flex-col items-center">
+            <div class="px-3 py-2 rounded-lg text-xs font-mono border transition ${
+              isActive ? 'bg-amber-500/20 border-amber-400 text-amber-200 active-node scale-105' : 
+              isCondition ? 'bg-cyan-950/40 border-cyan-800 text-cyan-200' : 'bg-slate-900 border-slate-800 text-slate-300'
+            }">
+              <span class="text-[10px] text-slate-500 mr-1.5">L${lNum}:</span>
+              <span>${trimmed.length > 30 ? trimmed.substring(0, 30) + '...' : trimmed}</span>
+            </div>
+            <div class="w-0.5 h-4 bg-slate-800"></div>
+          </div>
+        `;
+      });
+
+      flowchartHTML += `<div class="px-3 py-1 bg-rose-950 border border-rose-600/50 rounded-full text-[11px] font-mono text-rose-300">End Execution</div>`;
+      container.innerHTML = flowchartHTML;
+    }
+
+    // --- GENERATE AST STRUCTURE TREE ---
+    function generateAST(code) {
+      const container = document.getElementById('astContainer');
+      const lines = code.split('\n');
+
+      let astTree = {
+        type: "Program",
+        body: []
+      };
+
+      lines.forEach((lineText, idx) => {
+        let trimmed = lineText.trim();
+        if (trimmed.startsWith("public class") || trimmed.startsWith("class")) {
+          astTree.body.push({ type: "ClassDeclaration", name: trimmed.split(" ")[2] || "Main", line: idx + 1 });
+        } else if (trimmed.startsWith("public static void main")) {
+          astTree.body.push({ type: "MethodDeclaration", name: "main", line: idx + 1 });
+        } else if (trimmed.startsWith("for") || trimmed.startsWith("while")) {
+          astTree.body.push({ type: "LoopStatement", statement: trimmed, line: idx + 1 });
+        } else if (trimmed.startsWith("if")) {
+          astTree.body.push({ type: "IfBranch", condition: trimmed, line: idx + 1 });
+        }
+      });
+
+      container.innerText = JSON.stringify(astTree, null, 2);
+    }
+
+    // --- TERMINAL UTILS ---
+    function clearConsole() {
+      document.getElementById('terminalOutput').innerHTML = '<span class="text-slate-600">// Output stream cleared.</span>';
+    }
+
+    // --- THEME TOGGLE ---
+    function toggleTheme() {
+      const html = document.documentElement;
+      const themeIcon = document.getElementById('themeIcon');
+      if (html.classList.contains('dark')) {
+        html.classList.remove('dark');
+        themeIcon.setAttribute('data-lucide', 'moon');
+      } else {
+        html.classList.add('dark');
+        themeIcon.setAttribute('data-lucide', 'sun');
+      }
+      lucide.createIcons();
+    }
+  </script>
+</body>
+</html>

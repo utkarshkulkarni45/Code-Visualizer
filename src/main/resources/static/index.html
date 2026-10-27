@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Java Visualizer — see your code run</title>
+  <meta name="description" content="Paste Java code, check it for errors, and watch it execute line by line with a flowchart, variables and call stack.">
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <div class="logo" aria-hidden="true">{ }</div>
+      <div class="brand-text">
+        <h1>Java Visualizer</h1>
+        <p>Paste code, check it, and watch it run line by line</p>
+      </div>
+    </div>
+    <div class="topbar-right">
+      <span class="pill"><span class="dot"></span> Real JVM execution</span>
+      <span class="pill subtle">5s · 500-step limit</span>
+    </div>
+  </header>
+
+  <main class="layout">
+    <section class="panel editor-panel">
+      <div class="panel-head">
+        <div class="file-tab">
+          <span class="java-icon">J</span>
+          <span id="fileName">Main.java</span>
+        </div>
+        <div class="editor-tools">
+          <select id="sampleSelect" title="Load a sample program" aria-label="Load a sample program"></select>
+          <button id="uploadBtn" class="btn ghost" type="button">Upload</button>
+          <input id="fileInput" type="file" accept=".java,.txt,text/plain" hidden>
+        </div>
+      </div>
+
+      <div class="editor-body">
+        <div class="gutter" id="gutter" aria-hidden="true"></div>
+        <div class="code-shell">
+          <div class="line-highlight" id="lineHighlight"></div>
+          <textarea id="editor" spellcheck="false" autocomplete="off" autocapitalize="off"
+                    wrap="off" aria-label="Java code editor"></textarea>
+        </div>
+      </div>
+
+      <div class="banner hidden" id="banner"></div>
+
+      <div class="panel-foot">
+        <span class="hint"><kbd>Ctrl</kbd><span>+</span><kbd>Enter</kbd><span>to run</span></span>
+        <span class="counter" id="charCount">0 / 10,000</span>
+        <button id="analyzeBtn" class="btn primary" type="button">
+          <span class="spinner hidden" id="spinner"></span>
+          <span id="analyzeLabel">Run &amp; visualize</span>
+        </button>
+      </div>
+    </section>
+
+    <section class="panel stage-panel">
+      <div class="stage-head">
+        <div class="caption-wrap">
+          <span class="caption-label">Step</span>
+          <p id="caption">Run a program to see each step explained.</p>
+        </div>
+        <div class="step-badge" id="stepBadge">0 / 0</div>
+      </div>
+
+      <div class="controls">
+        <div class="control-group">
+          <button id="prevBtn" class="icon-btn" type="button" disabled title="Previous step (Left arrow)" aria-label="Previous step">◀</button>
+          <button id="playBtn" class="icon-btn play" type="button" disabled title="Play or pause (space)" aria-label="Play or pause">▶</button>
+          <button id="nextBtn" class="icon-btn" type="button" disabled title="Next step (Right arrow)" aria-label="Next step">▶</button>
+        </div>
+        <div class="timeline">
+          <input type="range" id="stepSlider" min="0" max="0" value="0" disabled aria-label="Step timeline">
+        </div>
+        <label class="speed">Speed
+          <select id="speedSelect" aria-label="Playback speed">
+            <option value="1400">0.5×</option>
+            <option value="900" selected>1×</option>
+            <option value="500">1.5×</option>
+            <option value="250">3×</option>
+          </select>
+        </label>
+        <label class="method-picker">Method
+          <select id="methodSelect" disabled aria-label="Method shown in the flowchart"></select>
+        </label>
+      </div>
+
+      <div class="flow-wrap">
+        <div class="flow-scroll" id="flowScroll">
+          <svg id="flowSvg" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Program flowchart"></svg>
+          <div class="empty-state" id="flowEmpty">
+            <div class="empty-icon">◈</div>
+            <h3>Your flowchart appears here</h3>
+            <p>Run a valid program and its control flow is drawn from the parsed code.</p>
+          </div>
+        </div>
+        <div class="zoom-controls">
+          <button id="zoomOut" class="icon-btn small" type="button" title="Zoom out" aria-label="Zoom out">−</button>
+          <button id="zoomIn" class="icon-btn small" type="button" title="Zoom in" aria-label="Zoom in">+</button>
+          <button id="zoomFit" class="icon-btn small wide" type="button" title="Fit to width" aria-label="Fit to width">Fit</button>
+        </div>
+        <div class="trace-flag hidden" id="traceFlag"></div>
+      </div>
+
+      <div class="lower">
+        <div class="state-card">
+          <h3>Variables <span class="muted" id="varCount"></span></h3>
+          <div class="vars" id="variables"><p class="muted">No variables yet.</p></div>
+        </div>
+        <div class="state-card">
+          <h3>Call stack</h3>
+          <div class="stack" id="callStack"><p class="muted">—</p></div>
+        </div>
+        <div class="state-card console-card">
+          <h3>Console</h3>
+          <pre class="console" id="console"><span class="muted">No output yet.</span></pre>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <div class="toast hidden" id="toast" role="status"></div>
+  <script src="/app.js"></script>
+</body>
+</html>
